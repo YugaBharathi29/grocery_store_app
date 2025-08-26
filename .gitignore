@@ -1,0 +1,11 @@
+# Environment variables
+.env
+.flaskenv
+
+# Other files to ignore
+__pycache__/
+*.pyc
+*.pyo
+instance/
+.DS_Store
+grocery_store.db

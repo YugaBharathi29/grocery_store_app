@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+
+{% block title %}Server Error - Grocery Store{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="error-page">
+        <div class="error-content">
+            <h1 class="error-code">500</h1>
+            <h2 class="error-title">Internal Server Error</h2>
+            <p class="error-description">
+                Something went wrong on our end. Please try again later.
+            </p>
+            
+            <div class="error-actions">
+                <a href="{{ url_for('index') }}" class="btn btn-primary">
+                    <i class="fas fa-home"></i> Go Home
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="hero">
+    <div class="hero-content">
+        <h1>Fresh Groceries Delivered</h1>
+        <p>Order fresh groceries online and get them delivered to your doorstep</p>
+        <a href="{{ url_for('products') }}" class="cta-button">Shop Now</a>
+    </div>
+</section>
+
+<section class="categories">
+    <div class="container">
+        <h2>Shop by Category</h2>
+        <div class="category-grid">
+            {% for category in categories %}
+            <div class="category-card">
+                <a href="{{ url_for('products', category_id=category.id) }}">
+                    <i class="fas fa-apple-alt"></i>
+                    <h3>{{ category.name }}</h3>
+                    <p>{{ category.description }}</p>
+                </a>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+
+<section class="featured-products">
+    <div class="container">
+        <h2>Featured Products</h2>
+        <div class="products-grid">
+            {% for product in products %}
+            <div class="product-card">
+                <div class="product-image">
+                    <img src="{{ product.image_url or '/static/images/no-image.jpg' }}" alt="{{ product.name }}">
+                </div>
+                <div class="product-info">
+                    <h3>{{ product.name }}</h3>
+                    <p class="product-price">${{ "%.2f"|format(product.price) }} / {{ product.unit }}</p>
+                    <p class="product-stock">Stock: {{ product.stock_quantity }}</p>
+                    <button class="add-to-cart-btn" onclick="addToCart({{ product.id }})">
+                        <i class="fas fa-cart-plus"></i> Add to Cart
+                    </button>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+{% endblock %}

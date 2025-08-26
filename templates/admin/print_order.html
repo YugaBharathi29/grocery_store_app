@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Order #{{ order.id }} - Invoice</title>
+    <style>
+        /* Print-optimized styles */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            font-size: 12px;
+            line-height: 1.4;
+            color: #333;
+            margin: 20px;
+            background: white;
+        }
+
+        .invoice-container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+        }
+
+        /* Header Section */
+        .invoice-header {
+            text-align: center;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #4CAF50;
+            padding-bottom: 20px;
+        }
+
+        .store-name {
+            font-size: 24px;
+            font-weight: bold;
+            color: #2c5530;
+            margin-bottom: 5px;
+        }
+
+        .store-subtitle {
+            font-size: 14px;
+            color: #666;
+        }
+
+        .invoice-title {
+            font-size: 20px;
+            color: #2c5530;
+            margin-top: 15px;
+            font-weight: bold;
+        }
+
+        /* Order Info Section */
+        .order-info {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+        }
+
+        .info-section h3 {
+            color: #2c5530;
+            font-size: 14px;
+            margin-bottom: 10px;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 5px;
+        }
+
+        .info-row {
+            margin-bottom: 5px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .info-label {
+            font-weight: bold;
+            color: #555;
+        }
+
+        /* Items Table */
+        .items-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+            border: 1px solid #ddd;
+        }
+
+        .items-table th,
+        .items-table td {
+            padding: 10px 8px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .items-table th {
+            background-color: #4CAF50;
+            color: white;
+            font-weight: bold;
+            text-align: center;
+        }
+
+        .items-table td {
+            vertical-align: top;
+        }
+
+        .items-table .item-name {
+            font-weight: bold;
+            color: #2c5530;
+        }
+
+        .items-table .item-description {
+            font-size: 11px;
+            color: #666;
+            margin-top: 3px;
+        }
+
+        .items-table .text-center {
+            text-align: center;
+        }
+
+        .items-table .text-right {
+            text-align: right;
+        }
+
+        /* Totals Section */
+        .totals-section {
+            float: right;
+            width: 300px;
+            margin-top: 20px;
+        }
+
+        .totals-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .totals-table td {
+            padding: 8px 10px;
+            border: 1px solid #ddd;
+        }
+
+        .totals-table .label {
+            background-color: #f8f9fa;
+            font-weight: bold;
+            color: #555;
+        }
+
+        .totals-table .amount {
+            text-align: right;
+            font-weight: bold;
+        }
+
+        .totals-table .grand-total {
+            background-color: #4CAF50;
+            color: white;
+            font-size: 14px;
+            font-weight: bold;
+        }
+
+        /* Footer */
+        .invoice-footer {
+            clear: both;
+            margin-top: 40px;
+            text-align: center;
+            border-top: 1px solid #ddd;
+            padding-top: 20px;
+            color: #666;
+            font-size: 11px;
+        }
+
+        /* Print Button */
+        .print-button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 14px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 20px 0;
+            display: block;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .print-button:hover {
+            background-color: #45a049;
+        }
+
+        /* Print-specific styles */
+        @media print {
+            body {
+                margin: 0;
+                font-size: 11px;
+            }
+            
+            .print-button {
+                display: none;
+            }
+            
+            .invoice-container {
+                box-shadow: none;
+                margin: 0;
+                padding: 0;
+            }
+            
+            .order-info {
+                break-inside: avoid;
+            }
+            
+            .items-table {
+                break-inside: avoid;
+            }
+        }
+
+        /* No-print class for screen-only elements */
+        @media print {
+            .no-print {
+                display: none !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="invoice-container">
+        <!-- Invoice Header -->
+        <div class="invoice-header">
+            <div class="store-name">🛒 Grocery Store</div>
+            <div class="store-subtitle">Fresh Groceries Delivered to Your Doorstep</div>
+            <div class="invoice-title">INVOICE #{{ order.id }}</div>
+        </div>
+
+        <!-- Order Information -->
+        <div class="order-info">
+            <div class="info-section">
+                <h3>📋 Order Details</h3>
+                <div class="info-row">
+                    <span class="info-label">Order ID:</span>
+                    <span>#{{ order.id }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Order Date:</span>
+                    <span>{{ order.order_date.strftime('%d %B, %Y') }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Order Time:</span>
+                    <span>{{ order.order_date.strftime('%I:%M %p') }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Status:</span>
+                    <span style="text-transform: uppercase; font-weight: bold; color: {% if order.status == 'delivered' %}#4CAF50{% elif order.status == 'pending' %}#ff9800{% else %}#2196F3{% endif %};">{{ order.status }}</span>
+                </div>
+            </div>
+
+            <div class="info-section">
+                <h3>👤 Customer Details</h3>
+                <div class="info-row">
+                    <span class="info-label">Name:</span>
+                    <span>{{ order.customer.username }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Email:</span>
+                    <span>{{ order.customer.email }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Phone:</span>
+                    <span>{{ order.phone_number }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Address:</span>
+                    <span>{{ order.delivery_address[:50] }}{% if order.delivery_address|length > 50 %}...{% endif %}</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Items Table -->
+        <table class="items-table">
+            <thead>
+                <tr>
+                    <th style="width: 50%">Product Details</th>
+                    <th style="width: 12%">Unit Price</th>
+                    <th style="width: 8%">Qty</th>
+                    <th style="width: 10%">Unit</th>
+                    <th style="width: 20%">Subtotal</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in order.items %}
+                <tr>
+                    <td>
+                        <div class="item-name">{{ item.product.name }}</div>
+                        {% if item.product.description %}
+                        <div class="item-description">{{ item.product.description }}</div>
+                        {% endif %}
+                    </td>
+                    <td class="text-right">₹{{ "%.2f"|format(item.price) }}</td>
+                    <td class="text-center">{{ item.quantity }}</td>
+                    <td class="text-center">{{ item.product.unit }}</td>
+                    <td class="text-right">₹{{ "%.2f"|format(item.price * item.quantity) }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <!-- Totals Section -->
+        <div class="totals-section">
+            <table class="totals-table">
+                <tr>
+                    <td class="label">Subtotal:</td>
+                    <td class="amount">₹{{ "%.2f"|format(order.items|sum(attribute='price') * order.items|sum(attribute='quantity')) }}</td>
+                </tr>
+                <tr>
+                    <td class="label">Delivery Fee:</td>
+                    <td class="amount">₹5.00</td>
+                </tr>
+                <tr>
+                    <td class="label">GST (5%):</td>
+                    <td class="amount">₹{{ "%.2f"|format((order.total_amount - 5) * 0.05) }}</td>
+                </tr>
+                <tr class="grand-total">
+                    <td class="label">GRAND TOTAL:</td>
+                    <td class="amount">₹{{ "%.2f"|format(order.total_amount) }}</td>
+                </tr>
+            </table>
+        </div>
+
+        <!-- Invoice Footer -->
+        <div class="invoice-footer">
+            <p><strong>Thank you for shopping with us! 🙏</strong></p>
+            <p>For any queries, contact us at support@grocerystore.com | Phone: +91-1234567890</p>
+            {% if order.delivery_date %}
+            <p>Delivered on: {{ order.delivery_date.strftime('%d %B, %Y at %I:%M %p') }}</p>
+            {% endif %}
+        </div>
+
+        <!-- Print Button (hidden during printing) -->
+        <button class="print-button no-print" onclick="window.print()">
+            🖨️ Print Invoice
+        </button>
+    </div>
+
+    <script>
+        // Auto-focus and prepare for printing
+        window.onload = function() {
+            // Auto-print when opened in new window (optional)
+            // Uncomment the line below if you want auto-print
+            // window.print();
+        };
+
+        // Handle print button click
+        function printInvoice() {
+            window.print();
+        }
+
+        // Close window after printing (optional)
+        window.onafterprint = function() {
+            // Uncomment if you want to auto-close after printing
+            // window.close();
+        };
+    </script>
+</body>
+</html>

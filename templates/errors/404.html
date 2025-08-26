@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+
+{% block title %}Page Not Found - Grocery Store{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="error-page">
+        <div class="error-content">
+            <h1 class="error-code">404</h1>
+            <h2 class="error-title">Page Not Found</h2>
+            <p class="error-description">
+                Sorry, the page you are looking for doesn't exist or has been moved.
+            </p>
+            
+            <div class="error-actions">
+                <a href="{{ url_for('index') }}" class="btn btn-primary">
+                    <i class="fas fa-home"></i> Go Home
+                </a>
+                <a href="{{ url_for('products') }}" class="btn btn-secondary">
+                    <i class="fas fa-shopping-cart"></i> Browse Products
+                </a>
+            </div>
+        </div>
+        
+        <div class="error-image">
+            <i class="fas fa-search error-icon"></i>
+        </div>
+    </div>
+</div>
+
+<style>
+.error-page {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 60vh;
+    text-align: center;
+    padding: 2rem;
+}
+
+.error-content {
+    max-width: 600px;
+}
+
+.error-code {
+    font-size: 6rem;
+    color: #4CAF50;
+    margin: 0;
+    font-weight: bold;
+}
+
+.error-title {
+    font-size: 2rem;
+    color: #2c5530;
+    margin: 1rem 0;
+}
+
+.error-description {
+    font-size: 1.1rem;
+    color: #666;
+    margin-bottom: 2rem;
+}
+
+.error-actions {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.error-icon {
+    font-size: 4rem;
+    color: #ccc;
+    margin-top: 2rem;
+}
+
+@media (max-width: 768px) {
+    .error-code {
+        font-size: 4rem;
+    }
+    
+    .error-title {
+        font-size: 1.5rem;
+    }
+    
+    .error-actions {
+        flex-direction: column;
+    }
+}
+</style>
+{% endblock %}

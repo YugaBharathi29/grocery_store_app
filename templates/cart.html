@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <h1>Shopping Cart</h1>
+
+    {% if cart_items %}
+    <div class="cart-container">
+        <div class="cart-items">
+            {% for item in cart_items %}
+            <div class="cart-item" data-product-id="{{ item.product.id }}">
+                <div class="item-image">
+                    <img src="{{ item.product.image_url or '/static/images/no-image.jpg' }}" alt="{{ item.product.name }}">
+                </div>
+                <div class="item-details">
+                    <h3>{{ item.product.name }}</h3>
+                    <p class="item-price">${{ "%.2f"|format(item.product.price) }} / {{ item.product.unit }}</p>
+                </div>
+                <div class="item-quantity">
+                    <button onclick="updateQuantity({{ item.product.id }}, {{ item.quantity - 1 }})">-</button>
+                    <input type="number" value="{{ item.quantity }}" min="1" max="{{ item.product.stock_quantity }}" 
+                           onchange="updateQuantity({{ item.product.id }}, this.value)">
+                    <button onclick="updateQuantity({{ item.product.id }}, {{ item.quantity + 1 }})">+</button>
+                </div>
+                <div class="item-subtotal">
+                    ${{ "%.2f"|format(item.subtotal) }}
+                </div>
+                <div class="item-remove">
+                    <button onclick="removeFromCart({{ item.product.id }})" class="remove-btn">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <div class="cart-summary">
+            <div class="summary-card">
+                <h3>Order Summary</h3>
+                <div class="summary-row">
+                    <span>Subtotal:</span>
+                    <span>${{ "%.2f"|format(total) }}</span>
+                </div>
+                <div class="summary-row">
+                    <span>Delivery Fee:</span>
+                    <span>$5.00</span>
+                </div>
+                <div class="summary-row total">
+                    <span>Total:</span>
+                    <span>${{ "%.2f"|format(total + 5) }}</span>
+                </div>
+
+                {% if current_user.is_authenticated %}
+                <a href="{{ url_for('checkout') }}" class="checkout-btn">Proceed to Checkout</a>
+                {% else %}
+                <a href="{{ url_for('login') }}" class="login-btn">Login to Checkout</a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="empty-cart">
+        <i class="fas fa-shopping-cart empty-cart-icon"></i>
+        <h2>Your cart is empty</h2>
+        <p>Add some products to get started</p>
+        <a href="{{ url_for('products') }}" class="shop-now-btn">Shop Now</a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

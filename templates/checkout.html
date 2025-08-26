@@ -1,0 +1,706 @@
+{% extends "base.html" %}
+
+{% block title %}Checkout - Grocery Store{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="checkout-header">
+        <h1><i class="fas fa-credit-card"></i> Checkout</h1>
+        <p>Review your order and complete your purchase</p>
+    </div>
+
+    <div class="checkout-container">
+        <!-- Order Summary -->
+        <div class="order-summary">
+            <h2><i class="fas fa-receipt"></i> Order Summary</h2>
+            
+            <div class="order-items">
+                {% for item in cart_items %}
+                <div class="checkout-item">
+                    <div class="item-image">
+                        <img src="{{ item.product.image_url or '/static/images/no-image.jpg' }}" 
+                             alt="{{ item.product.name }}">
+                    </div>
+                    <div class="item-details">
+                        <h4>{{ item.product.name }}</h4>
+                        <p class="item-unit">{{ item.product.unit }}</p>
+                        <p class="item-price">₹{{ "%.2f"|format(item.product.price) }} × {{ item.quantity }}</p>
+                    </div>
+                    <div class="item-total">
+                        <strong>₹{{ "%.2f"|format(item.subtotal) }}</strong>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+
+            <div class="order-totals">
+                <div class="total-row">
+                    <span>Subtotal:</span>
+                    <span>₹{{ "%.2f"|format(total) }}</span>
+                </div>
+                <div class="total-row">
+                    <span>Delivery Fee:</span>
+                    <span>₹5.00</span>
+                </div>
+                <div class="total-row">
+                    <span>GST (5%):</span>
+                    <span>₹{{ "%.2f"|format(total * 0.05) }}</span>
+                </div>
+                <div class="total-row grand-total">
+                    <span>Grand Total:</span>
+                    <span>₹{{ "%.2f"|format(total + 5 + (total * 0.05)) }}</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Delivery Information -->
+        <div class="delivery-info">
+            <h2><i class="fas fa-truck"></i> Delivery Information</h2>
+            
+            <form id="checkoutForm">
+                <!-- Customer Details -->
+                <div class="form-section">
+                    <h3>Customer Details</h3>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="customerName">Full Name</label>
+                            <input type="text" id="customerName" name="name" 
+                                   value="{{ current_user.username }}" required readonly>
+                        </div>
+                        <div class="form-group">
+                            <label for="customerEmail">Email Address</label>
+                            <input type="email" id="customerEmail" name="email" 
+                                   value="{{ current_user.email }}" required readonly>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Delivery Address -->
+                <div class="form-section">
+                    <h3>Delivery Address</h3>
+                    <div class="form-group">
+                        <label for="deliveryAddress">Complete Address</label>
+                        <textarea id="deliveryAddress" name="address" rows="4" required 
+                                  placeholder="House/Flat No., Building Name&#10;Street/Area Name&#10;Landmark (Optional)&#10;City, State - PIN Code">{{ current_user.address or '' }}</textarea>
+                        <small>Please provide your complete address for accurate delivery</small>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="phoneNumber">Mobile Number</label>
+                            <input type="tel" id="phoneNumber" name="phone" required 
+                                   value="{{ current_user.phone or '' }}"
+                                   placeholder="Enter 10-digit mobile number" 
+                                   pattern="[6-9][0-9]{9}">
+                            <small>For delivery updates and coordination</small>
+                        </div>
+                        <div class="form-group">
+                            <label for="pinCode">PIN Code</label>
+                            <input type="text" id="pinCode" name="pincode" 
+                                   value="{{ current_user.pincode or '' }}"
+                                   placeholder="Enter 6-digit PIN code" 
+                                   pattern="[0-9]{6}" maxlength="6">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Delivery Options -->
+                <div class="form-section">
+                    <h3>Delivery Options</h3>
+                    <div class="delivery-options">
+                        <label class="delivery-option">
+                            <input type="radio" name="delivery_type" value="standard" checked>
+                            <div class="option-content">
+                                <strong>Standard Delivery (FREE)</strong>
+                                <p>Delivery within 2-3 hours</p>
+                            </div>
+                        </label>
+                        
+                        <label class="delivery-option">
+                            <input type="radio" name="delivery_type" value="express">
+                            <div class="option-content">
+                                <strong>Express Delivery (+₹20)</strong>
+                                <p>Delivery within 1 hour</p>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Special Instructions -->
+                <div class="form-section">
+                    <h3>Special Instructions (Optional)</h3>
+                    <div class="form-group">
+                        <textarea id="specialInstructions" name="instructions" rows="3" 
+                                  placeholder="Any special delivery instructions, preferred time, etc."></textarea>
+                    </div>
+                </div>
+
+                <!-- Payment Method -->
+                <div class="form-section">
+                    <h3>Payment Method</h3>
+                    <div class="payment-options">
+                        <label class="payment-option">
+                            <input type="radio" name="payment_method" value="cod" checked>
+                            <div class="option-content">
+                                <i class="fas fa-money-bill-wave"></i>
+                                <strong>Cash on Delivery</strong>
+                                <p>Pay when your order arrives</p>
+                            </div>
+                        </label>
+                        
+                        <label class="payment-option">
+                            <input type="radio" name="payment_method" value="online">
+                            <div class="option-content">
+                                <i class="fas fa-credit-card"></i>
+                                <strong>Online Payment</strong>
+                                <p>Pay securely online (Coming Soon)</p>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Place Order Button -->
+                <div class="form-actions">
+                    <a href="{{ url_for('cart') }}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left"></i> Back to Cart
+                    </a>
+                    <button type="submit" class="btn btn-primary btn-large" id="placeOrderBtn">
+                        <i class="fas fa-shopping-bag"></i> Place Order - ₹{{ "%.2f"|format(total + 5 + (total * 0.05)) }}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Order Confirmation Modal -->
+<div id="orderModal" class="modal" style="display: none;">
+    <div class="modal-content success-modal">
+        <div class="modal-header success-header">
+            <i class="fas fa-check-circle success-icon"></i>
+            <h3>Order Placed Successfully!</h3>
+        </div>
+        <div class="modal-body">
+            <p>Thank you for your order! Your order has been placed successfully.</p>
+            <div class="order-info">
+                <p><strong>Order ID:</strong> <span id="orderIdDisplay">#</span></p>
+                <p><strong>Estimated Delivery:</strong> <span id="deliveryTime">2-3 hours</span></p>
+            </div>
+            <p>You will receive updates on your mobile number.</p>
+        </div>
+        <div class="modal-footer">
+            <a href="{{ url_for('my_orders') }}" class="btn btn-primary">View My Orders</a>
+            <a href="{{ url_for('index') }}" class="btn btn-secondary">Continue Shopping</a>
+        </div>
+    </div>
+</div>
+
+<style>
+/* Checkout Styles */
+.checkout-header {
+    text-align: center;
+    margin-bottom: 2rem;
+    padding: 2rem 0;
+    background: linear-gradient(135deg, #2c5530, #4CAF50);
+    color: white;
+    border-radius: 10px;
+    margin-top: 1rem;
+}
+
+.checkout-header h1 {
+    font-size: 2.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.checkout-header p {
+    font-size: 1.1rem;
+    opacity: 0.9;
+}
+
+.checkout-container {
+    display: grid;
+    grid-template-columns: 1fr 1.5fr;
+    gap: 2rem;
+    margin-top: 2rem;
+}
+
+/* Order Summary */
+.order-summary {
+    background: white;
+    padding: 2rem;
+    border-radius: 10px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    height: fit-content;
+    position: sticky;
+    top: 2rem;
+}
+
+.order-summary h2 {
+    color: #2c5530;
+    margin-bottom: 1.5rem;
+    font-size: 1.5rem;
+    border-bottom: 2px solid #4CAF50;
+    padding-bottom: 0.5rem;
+}
+
+.checkout-item {
+    display: grid;
+    grid-template-columns: 80px 1fr auto;
+    gap: 1rem;
+    align-items: center;
+    padding: 1rem 0;
+    border-bottom: 1px solid #eee;
+}
+
+.checkout-item:last-child {
+    border-bottom: none;
+}
+
+.checkout-item .item-image img {
+    width: 60px;
+    height: 60px;
+    object-fit: cover;
+    border-radius: 5px;
+}
+
+.item-details h4 {
+    color: #2c5530;
+    margin-bottom: 0.3rem;
+    font-size: 1rem;
+}
+
+.item-unit {
+    color: #666;
+    font-size: 0.85rem;
+    margin-bottom: 0.3rem;
+}
+
+.item-price {
+    color: #4CAF50;
+    font-size: 0.9rem;
+}
+
+.item-total {
+    text-align: right;
+    color: #2c5530;
+    font-weight: bold;
+}
+
+.order-totals {
+    margin-top: 1.5rem;
+    padding-top: 1rem;
+    border-top: 2px solid #eee;
+}
+
+.total-row {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 0.8rem;
+    font-size: 1rem;
+}
+
+.grand-total {
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: #2c5530;
+    border-top: 1px solid #ddd;
+    padding-top: 1rem;
+    margin-top: 1rem;
+}
+
+/* Delivery Information */
+.delivery-info {
+    background: white;
+    padding: 2rem;
+    border-radius: 10px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+.delivery-info h2 {
+    color: #2c5530;
+    margin-bottom: 1.5rem;
+    font-size: 1.5rem;
+    border-bottom: 2px solid #4CAF50;
+    padding-bottom: 0.5rem;
+}
+
+.form-section {
+    margin-bottom: 2rem;
+}
+
+.form-section h3 {
+    color: #2c5530;
+    margin-bottom: 1rem;
+    font-size: 1.2rem;
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+.form-group {
+    margin-bottom: 1rem;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    color: #2c5530;
+    font-weight: bold;
+}
+
+.form-group input,
+.form-group textarea {
+    width: 100%;
+    padding: 0.8rem;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    font-size: 1rem;
+}
+
+.form-group input:focus,
+.form-group textarea:focus {
+    outline: none;
+    border-color: #4CAF50;
+    box-shadow: 0 0 5px rgba(76, 175, 80, 0.3);
+}
+
+.form-group input[readonly] {
+    background-color: #f8f9fa;
+    color: #666;
+}
+
+.form-group small {
+    display: block;
+    margin-top: 0.3rem;
+    color: #666;
+    font-size: 0.85rem;
+}
+
+/* Delivery Options */
+.delivery-options,
+.payment-options {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.delivery-option,
+.payment-option {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    border: 2px solid #e9ecef;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.delivery-option:hover,
+.payment-option:hover {
+    border-color: #4CAF50;
+    background-color: #f8fff8;
+}
+
+.delivery-option input[type="radio"]:checked + .option-content,
+.payment-option input[type="radio"]:checked + .option-content {
+    color: #2c5530;
+}
+
+.delivery-option input[type="radio"]:checked,
+.payment-option input[type="radio"]:checked {
+    transform: scale(1.2);
+}
+
+.delivery-option:has(input:checked),
+.payment-option:has(input:checked) {
+    border-color: #4CAF50;
+    background-color: #f8fff8;
+}
+
+.option-content {
+    flex: 1;
+}
+
+.option-content strong {
+    display: block;
+    margin-bottom: 0.3rem;
+    font-size: 1rem;
+}
+
+.option-content p {
+    margin: 0;
+    color: #666;
+    font-size: 0.9rem;
+}
+
+.payment-option i {
+    font-size: 1.5rem;
+    color: #4CAF50;
+    margin-right: 0.5rem;
+}
+
+/* Form Actions */
+.form-actions {
+    display: flex;
+    gap: 1rem;
+    justify-content: space-between;
+    margin-top: 2rem;
+    padding-top: 2rem;
+    border-top: 2px solid #eee;
+}
+
+.btn-large {
+    padding: 1rem 2rem;
+    font-size: 1.1rem;
+    font-weight: bold;
+}
+
+/* Success Modal */
+.success-modal .modal-content {
+    max-width: 500px;
+}
+
+.success-header {
+    background: linear-gradient(135deg, #4CAF50, #45a049);
+    color: white;
+    text-align: center;
+    padding: 2rem;
+    border-radius: 10px 10px 0 0;
+}
+
+.success-icon {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+}
+
+.success-header h3 {
+    margin: 0;
+    font-size: 1.5rem;
+}
+
+.order-info {
+    background: #f8f9fa;
+    padding: 1rem;
+    border-radius: 5px;
+    margin: 1rem 0;
+}
+
+.order-info p {
+    margin: 0.5rem 0;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .checkout-container {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+    
+    .checkout-header h1 {
+        font-size: 2rem;
+    }
+    
+    .form-row {
+        grid-template-columns: 1fr;
+    }
+    
+    .checkout-item {
+        grid-template-columns: 60px 1fr auto;
+        gap: 0.5rem;
+    }
+    
+    .form-actions {
+        flex-direction: column;
+    }
+    
+    .delivery-options,
+    .payment-options {
+        gap: 0.5rem;
+    }
+    
+    .delivery-option,
+    .payment-option {
+        padding: 0.8rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .checkout-header h1 {
+        font-size: 1.5rem;
+    }
+    
+    .order-summary,
+    .delivery-info {
+        padding: 1rem;
+    }
+    
+    .checkout-item {
+        grid-template-columns: 1fr;
+        text-align: center;
+        gap: 0.5rem;
+    }
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Phone number formatting
+    const phoneInput = document.getElementById('phoneNumber');
+    phoneInput.addEventListener('input', function() {
+        let value = this.value.replace(/\D/g, '');
+        
+        if (value.length > 10) {
+            value = value.slice(0, 10);
+        }
+        
+        if (value.length === 10 && !/^[6-9]/.test(value)) {
+            this.setCustomValidity('Mobile number must start with 6, 7, 8, or 9');
+        } else {
+            this.setCustomValidity('');
+        }
+        
+        this.value = value;
+    });
+
+    // PIN code formatting
+    const pinInput = document.getElementById('pinCode');
+    pinInput.addEventListener('input', function() {
+        let value = this.value.replace(/\D/g, '');
+        
+        if (value.length > 6) {
+            value = value.slice(0, 6);
+        }
+        
+        this.value = value;
+    });
+
+    // Update delivery fee based on delivery type
+    const deliveryOptions = document.querySelectorAll('input[name="delivery_type"]');
+    deliveryOptions.forEach(option => {
+        option.addEventListener('change', updateOrderTotal);
+    });
+
+    // Checkout form submission
+    document.getElementById('checkoutForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const address = document.getElementById('deliveryAddress').value.trim();
+        const phone = document.getElementById('phoneNumber').value.trim();
+        
+        if (!address) {
+            showNotification('Please enter your delivery address', 'error');
+            return;
+        }
+        
+        if (!phone || phone.length !== 10) {
+            showNotification('Please enter a valid 10-digit mobile number', 'error');
+            return;
+        }
+        
+        if (!/^[6-9]\d{9}$/.test(phone)) {
+            showNotification('Mobile number must start with 6, 7, 8, or 9', 'error');
+            return;
+        }
+        
+        const placeOrderBtn = document.getElementById('placeOrderBtn');
+        const originalText = placeOrderBtn.innerHTML;
+        placeOrderBtn.disabled = true;
+        placeOrderBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+        
+        placeOrder();
+    });
+});
+
+function updateOrderTotal() {
+    const deliveryType = document.querySelector('input[name="delivery_type"]:checked').value;
+    const deliveryFee = deliveryType === 'express' ? 25 : 5;
+    
+    // Update delivery fee display
+    const deliveryFeeSpan = document.querySelector('.total-row:nth-child(2) span:last-child');
+    deliveryFeeSpan.textContent = `₹${deliveryFee.toFixed(2)}`;
+    
+    // Recalculate total
+    const subtotal = {{ total }};
+    const gst = subtotal * 0.05;
+    const grandTotal = subtotal + deliveryFee + gst;
+    
+    // Update grand total display
+    const grandTotalSpan = document.querySelector('.grand-total span:last-child');
+    grandTotalSpan.textContent = `₹${grandTotal.toFixed(2)}`;
+    
+    // Update button text
+    const placeOrderBtn = document.getElementById('placeOrderBtn');
+    placeOrderBtn.innerHTML = `<i class="fas fa-shopping-bag"></i> Place Order - ₹${grandTotal.toFixed(2)}`;
+}
+
+function placeOrder() {
+    const address = document.getElementById('deliveryAddress').value;
+    const phone = document.getElementById('phoneNumber').value;
+    const instructions = document.getElementById('specialInstructions').value;
+    const deliveryType = document.querySelector('input[name="delivery_type"]:checked').value;
+    const paymentMethod = document.querySelector('input[name="payment_method"]:checked').value;
+    
+    fetch('/place_order', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            address: address,
+            phone: phone,
+            instructions: instructions,
+            delivery_type: deliveryType,
+            payment_method: paymentMethod
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showOrderSuccess(data.order_id);
+        } else {
+            showNotification(data.message || 'Error placing order', 'error');
+            resetPlaceOrderButton();
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showNotification('Error placing order', 'error');
+        resetPlaceOrderButton();
+    });
+}
+
+function showOrderSuccess(orderId) {
+    document.getElementById('orderIdDisplay').textContent = `#${orderId}`;
+    
+    const deliveryType = document.querySelector('input[name="delivery_type"]:checked').value;
+    const deliveryTime = deliveryType === 'express' ? '1 hour' : '2-3 hours';
+    document.getElementById('deliveryTime').textContent = deliveryTime;
+    
+    document.getElementById('orderModal').style.display = 'flex';
+}
+
+function resetPlaceOrderButton() {
+    const placeOrderBtn = document.getElementById('placeOrderBtn');
+    const deliveryType = document.querySelector('input[name="delivery_type"]:checked').value;
+    const subtotal = {{ total }};
+    const deliveryFee = deliveryType === 'express' ? 25 : 5;
+    const gst = subtotal * 0.05;
+    const grandTotal = subtotal + deliveryFee + gst;
+    
+    placeOrderBtn.disabled = false;
+    placeOrderBtn.innerHTML = `<i class="fas fa-shopping-bag"></i> Place Order - ₹${grandTotal.toFixed(2)}`;
+}
+
+// Close modal when clicking outside
+window.onclick = function(event) {
+    const modal = document.getElementById('orderModal');
+    if (event.target === modal) {
+        modal.style.display = 'none';
+    }
+};
+</script>
+{% endblock %}

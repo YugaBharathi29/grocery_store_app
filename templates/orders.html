@@ -1,0 +1,775 @@
+{% extends "base.html" %}
+
+{% block title %}My Orders - Grocery Store{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="orders-header">
+        <h1><i class="fas fa-shopping-bag"></i> My Orders</h1>
+        <p>Track and manage your grocery orders</p>
+    </div>
+
+    {% if orders %}
+    <!-- Order Statistics -->
+    <div class="order-stats">
+        <div class="stat-item">
+            <h3>{{ orders|length }}</h3>
+            <p>Total Orders</p>
+        </div>
+        <div class="stat-item">
+            <h3>{{ orders|selectattr('status', 'equalto', 'pending')|list|length }}</h3>
+            <p>Pending</p>
+        </div>
+        <div class="stat-item">
+            <h3>{{ orders|selectattr('status', 'equalto', 'delivered')|list|length }}</h3>
+            <p>Delivered</p>
+        </div>
+        <div class="stat-item">
+            <h3>₹{{ "%.0f"|format(orders|sum(attribute='total_amount')) }}</h3>
+            <p>Total Spent</p>
+        </div>
+    </div>
+
+    <!-- Orders Filter -->
+    <div class="orders-filter">
+        <div class="filter-tabs">
+            <button class="filter-tab active" onclick="filterOrders('all')">All Orders</button>
+            <button class="filter-tab" onclick="filterOrders('pending')">Pending</button>
+            <button class="filter-tab" onclick="filterOrders('confirmed')">Confirmed</button>
+            <button class="filter-tab" onclick="filterOrders('delivered')">Delivered</button>
+            <button class="filter-tab" onclick="filterOrders('cancelled')">Cancelled</button>
+        </div>
+        <div class="search-filter">
+            <input type="text" id="orderSearch" placeholder="Search orders..." onkeyup="searchOrders()">
+            <i class="fas fa-search"></i>
+        </div>
+    </div>
+
+    <!-- Orders List -->
+    <div class="orders-container">
+        {% for order in orders %}
+        <div class="order-card" data-status="{{ order.status }}" data-order-id="{{ order.id }}">
+            <div class="order-header">
+                <div class="order-info">
+                    <h3>Order #{{ order.id }}</h3>
+                    <p class="order-date">
+                        <i class="fas fa-calendar"></i>
+                        {{ order.order_date.strftime('%d %b, %Y at %I:%M %p') }}
+                    </p>
+                </div>
+                <div class="order-status">
+                    <span class="status-badge {{ order.status }}">
+                        <i class="fas fa-{% if order.status == 'pending' %}clock{% elif order.status == 'confirmed' %}check{% elif order.status == 'delivered' %}truck{% else %}times{% endif %}"></i>
+                        {{ order.status.title() }}
+                    </span>
+                    <div class="order-total">
+                        <strong>₹{{ "%.2f"|format(order.total_amount) }}</strong>
+                    </div>
+                </div>
+            </div>
+
+            <div class="order-items">
+                <div class="items-preview">
+                    {% for item in order.items[:3] %}
+                    <div class="item-preview">
+                        <img src="{{ item.product.image_url or '/static/images/no-image.jpg' }}" 
+                             alt="{{ item.product.name }}" class="item-image">
+                        <div class="item-info">
+                            <span class="item-name">{{ item.product.name }}</span>
+                            <span class="item-quantity">Qty: {{ item.quantity }}</span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                    
+                    {% if order.items|length > 3 %}
+                    <div class="more-items">
+                        <span>+{{ order.items|length - 3 }} more items</span>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="order-details">
+                <div class="delivery-info">
+                    <p><i class="fas fa-map-marker-alt"></i> 
+                       {{ order.delivery_address[:50] }}{% if order.delivery_address|length > 50 %}...{% endif %}</p>
+                    <p><i class="fas fa-phone"></i> {{ order.phone_number }}</p>
+                </div>
+                
+                {% if order.delivery_date %}
+                <div class="delivery-date">
+                    <p><i class="fas fa-truck"></i> 
+                       Delivered on {{ order.delivery_date.strftime('%d %b, %Y at %I:%M %p') }}</p>
+                </div>
+                {% endif %}
+            </div>
+
+            <div class="order-actions">
+                <button onclick="toggleOrderDetails({{ order.id }})" class="btn btn-secondary">
+                    <i class="fas fa-eye"></i> View Details
+                </button>
+                
+                {% if order.status == 'pending' %}
+                <button onclick="cancelOrder({{ order.id }})" class="btn btn-danger">
+                    <i class="fas fa-times"></i> Cancel Order
+                </button>
+                {% endif %}
+                
+                {% if order.status == 'delivered' %}
+                <button onclick="reorderItems({{ order.id }})" class="btn btn-primary">
+                    <i class="fas fa-redo"></i> Reorder
+                </button>
+                {% endif %}
+            </div>
+
+            <!-- Expandable Order Details -->
+            <div class="order-details-expanded" id="details-{{ order.id }}" style="display: none;">
+                <div class="details-section">
+                    <h4><i class="fas fa-list"></i> Order Items</h4>
+                    <div class="detailed-items">
+                        {% for item in order.items %}
+                        <div class="detailed-item">
+                            <img src="{{ item.product.image_url or '/static/images/no-image.jpg' }}" 
+                                 alt="{{ item.product.name }}" class="detailed-item-image">
+                            <div class="detailed-item-info">
+                                <h5>{{ item.product.name }}</h5>
+                                <p>{{ item.product.description or 'No description available' }}</p>
+                                <div class="item-pricing">
+                                    <span class="unit-price">₹{{ "%.2f"|format(item.price) }} × {{ item.quantity }}</span>
+                                    <span class="item-total">₹{{ "%.2f"|format(item.price * item.quantity) }}</span>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div class="details-section">
+                    <h4><i class="fas fa-calculator"></i> Order Summary</h4>
+                    <div class="order-summary">
+                        <div class="summary-row">
+                            <span>Items ({{ order.items|length }})</span>
+                            <span>₹{{ "%.2f"|format(order.items|sum(attribute='price') * order.items|sum(attribute='quantity')) }}</span>
+                        </div>
+                        <div class="summary-row">
+                            <span>Delivery Fee</span>
+                            <span>₹5.00</span>
+                        </div>
+                        <div class="summary-row">
+                            <span>GST (5%)</span>
+                            <span>₹{{ "%.2f"|format((order.total_amount - 5) * 0.05) }}</span>
+                        </div>
+                        <div class="summary-row total">
+                            <span>Total Amount</span>
+                            <span>₹{{ "%.2f"|format(order.total_amount) }}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="details-section">
+                    <h4><i class="fas fa-truck"></i> Delivery Information</h4>
+                    <div class="delivery-details">
+                        <p><strong>Address:</strong> {{ order.delivery_address }}</p>
+                        <p><strong>Phone:</strong> {{ order.phone_number }}</p>
+                        <p><strong>Order Status:</strong> 
+                           <span class="status-badge {{ order.status }} small">{{ order.status.title() }}</span></p>
+                        {% if order.delivery_date %}
+                        <p><strong>Delivered:</strong> {{ order.delivery_date.strftime('%d %B, %Y at %I:%M %p') }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    {% else %}
+    <!-- Empty State -->
+    <div class="empty-orders">
+        <div class="empty-icon">
+            <i class="fas fa-shopping-bag"></i>
+        </div>
+        <h2>No Orders Yet</h2>
+        <p>You haven't placed any orders yet. Start shopping to see your orders here!</p>
+        <a href="{{ url_for('products') }}" class="btn btn-primary btn-large">
+            <i class="fas fa-shopping-cart"></i> Start Shopping
+        </a>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+/* Orders Page Styles */
+.orders-header {
+    text-align: center;
+    margin-bottom: 2rem;
+    padding: 2rem 0;
+    background: linear-gradient(135deg, #2c5530, #4CAF50);
+    color: white;
+    border-radius: 10px;
+    margin-top: 1rem;
+}
+
+.orders-header h1 {
+    font-size: 2.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.orders-header p {
+    font-size: 1.1rem;
+    opacity: 0.9;
+}
+
+/* Order Statistics */
+.order-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+.stat-item {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 10px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    text-align: center;
+}
+
+.stat-item h3 {
+    font-size: 2rem;
+    color: #4CAF50;
+    margin-bottom: 0.5rem;
+}
+
+.stat-item p {
+    color: #666;
+    margin: 0;
+}
+
+/* Order Filters */
+.orders-filter {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 10px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    margin-bottom: 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+}
+
+.filter-tabs {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.filter-tab {
+    padding: 0.5rem 1rem;
+    border: 1px solid #ddd;
+    background: #f8f9fa;
+    color: #666;
+    border-radius: 20px;
+    cursor: pointer;
+    transition: all 0.3s;
+    font-size: 0.9rem;
+}
+
+.filter-tab.active,
+.filter-tab:hover {
+    background: #4CAF50;
+    color: white;
+    border-color: #4CAF50;
+}
+
+.search-filter {
+    position: relative;
+    min-width: 250px;
+}
+
+.search-filter input {
+    width: 100%;
+    padding: 0.7rem 2.5rem 0.7rem 1rem;
+    border: 1px solid #ddd;
+    border-radius: 20px;
+    font-size: 0.9rem;
+}
+
+.search-filter i {
+    position: absolute;
+    right: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #666;
+}
+
+/* Order Cards */
+.orders-container {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.order-card {
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    overflow: hidden;
+    transition: transform 0.3s, box-shadow 0.3s;
+}
+
+.order-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 15px rgba(0,0,0,0.15);
+}
+
+.order-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.5rem;
+    border-bottom: 1px solid #eee;
+}
+
+.order-info h3 {
+    color: #2c5530;
+    margin-bottom: 0.5rem;
+    font-size: 1.3rem;
+}
+
+.order-date {
+    color: #666;
+    margin: 0;
+    font-size: 0.9rem;
+}
+
+.order-date i {
+    margin-right: 0.5rem;
+}
+
+.order-status {
+    text-align: right;
+}
+
+.order-total {
+    margin-top: 0.5rem;
+    font-size: 1.2rem;
+    color: #2c5530;
+}
+
+/* Status Badges */
+.status-badge {
+    padding: 0.4rem 1rem;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: bold;
+    text-transform: uppercase;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+.status-badge.small {
+    padding: 0.2rem 0.8rem;
+    font-size: 0.75rem;
+}
+
+.status-badge.pending {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.status-badge.confirmed {
+    background: #d1ecf1;
+    color: #0c5460;
+}
+
+.status-badge.delivered {
+    background: #d4edda;
+    color: #155724;
+}
+
+.status-badge.cancelled {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+/* Order Items Preview */
+.order-items {
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid #eee;
+}
+
+.items-preview {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+}
+
+.item-preview {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.item-image {
+    width: 40px;
+    height: 40px;
+    object-fit: cover;
+    border-radius: 5px;
+}
+
+.item-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.item-name {
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: #2c5530;
+}
+
+.item-quantity {
+    font-size: 0.75rem;
+    color: #666;
+}
+
+.more-items {
+    color: #666;
+    font-size: 0.85rem;
+    padding: 0.5rem;
+    background: #f8f9fa;
+    border-radius: 5px;
+}
+
+/* Order Details */
+.order-details {
+    padding: 1rem 1.5rem;
+    background: #f8f9fa;
+}
+
+.delivery-info p {
+    margin: 0.3rem 0;
+    font-size: 0.9rem;
+    color: #666;
+}
+
+.delivery-info i {
+    width: 15px;
+    margin-right: 0.5rem;
+    color: #4CAF50;
+}
+
+/* Order Actions */
+.order-actions {
+    padding: 1rem 1.5rem;
+    display: flex;
+    gap: 1rem;
+    justify-content: flex-end;
+}
+
+.btn-danger {
+    background-color: #dc3545;
+    color: white;
+}
+
+.btn-danger:hover {
+    background-color: #c82333;
+}
+
+/* Expanded Details */
+.order-details-expanded {
+    border-top: 1px solid #eee;
+    background: #fafafa;
+}
+
+.details-section {
+    padding: 1.5rem;
+    border-bottom: 1px solid #eee;
+}
+
+.details-section:last-child {
+    border-bottom: none;
+}
+
+.details-section h4 {
+    color: #2c5530;
+    margin-bottom: 1rem;
+    font-size: 1.1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+/* Detailed Items */
+.detailed-items {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.detailed-item {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    background: white;
+    padding: 1rem;
+    border-radius: 8px;
+}
+
+.detailed-item-image {
+    width: 60px;
+    height: 60px;
+    object-fit: cover;
+    border-radius: 5px;
+}
+
+.detailed-item-info {
+    flex: 1;
+}
+
+.detailed-item-info h5 {
+    color: #2c5530;
+    margin-bottom: 0.3rem;
+}
+
+.detailed-item-info p {
+    color: #666;
+    font-size: 0.9rem;
+    margin-bottom: 0.5rem;
+}
+
+.item-pricing {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.unit-price {
+    color: #666;
+    font-size: 0.9rem;
+}
+
+.item-total {
+    font-weight: bold;
+    color: #4CAF50;
+}
+
+/* Order Summary */
+.order-summary {
+    background: white;
+    padding: 1rem;
+    border-radius: 8px;
+}
+
+.summary-row {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+    font-size: 0.95rem;
+}
+
+.summary-row.total {
+    border-top: 1px solid #eee;
+    padding-top: 0.5rem;
+    margin-top: 0.5rem;
+    font-weight: bold;
+    font-size: 1.1rem;
+    color: #2c5530;
+}
+
+/* Empty State */
+.empty-orders {
+    text-align: center;
+    padding: 4rem 2rem;
+}
+
+.empty-icon {
+    font-size: 4rem;
+    color: #ccc;
+    margin-bottom: 2rem;
+}
+
+.empty-orders h2 {
+    color: #666;
+    margin-bottom: 1rem;
+}
+
+.empty-orders p {
+    color: #888;
+    margin-bottom: 2rem;
+    font-size: 1.1rem;
+}
+
+.btn-large {
+    padding: 1rem 2rem;
+    font-size: 1.1rem;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .orders-header h1 {
+        font-size: 2rem;
+    }
+    
+    .order-stats {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .orders-filter {
+        flex-direction: column;
+        gap: 1rem;
+    }
+    
+    .filter-tabs {
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+    
+    .order-header {
+        flex-direction: column;
+        gap: 1rem;
+    }
+    
+    .order-actions {
+        flex-direction: column;
+    }
+    
+    .detailed-item {
+        flex-direction: column;
+        text-align: center;
+    }
+    
+    .item-pricing {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .orders-header h1 {
+        font-size: 1.5rem;
+    }
+    
+    .order-stats {
+        grid-template-columns: 1fr;
+    }
+    
+    .items-preview {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+}
+</style>
+
+<script>
+// Filter orders by status
+function filterOrders(status) {
+    const orderCards = document.querySelectorAll('.order-card');
+    const filterTabs = document.querySelectorAll('.filter-tab');
+    
+    // Update active tab
+    filterTabs.forEach(tab => tab.classList.remove('active'));
+    event.target.classList.add('active');
+    
+    // Filter orders
+    orderCards.forEach(card => {
+        const orderStatus = card.getAttribute('data-status');
+        if (status === 'all' || orderStatus === status) {
+            card.style.display = 'block';
+        } else {
+            card.style.display = 'none';
+        }
+    });
+}
+
+// Search orders
+function searchOrders() {
+    const searchTerm = document.getElementById('orderSearch').value.toLowerCase();
+    const orderCards = document.querySelectorAll('.order-card');
+    
+    orderCards.forEach(card => {
+        const orderId = card.getAttribute('data-order-id');
+        const orderText = card.textContent.toLowerCase();
+        
+        if (orderId.includes(searchTerm) || orderText.includes(searchTerm)) {
+            card.style.display = 'block';
+        } else {
+            card.style.display = 'none';
+        }
+    });
+}
+
+// Toggle order details
+function toggleOrderDetails(orderId) {
+    const details = document.getElementById(`details-${orderId}`);
+    const button = event.target;
+    
+    if (details.style.display === 'none' || details.style.display === '') {
+        details.style.display = 'block';
+        button.innerHTML = '<i class="fas fa-eye-slash"></i> Hide Details';
+    } else {
+        details.style.display = 'none';
+        button.innerHTML = '<i class="fas fa-eye"></i> View Details';
+    }
+}
+
+// Cancel order
+function cancelOrder(orderId) {
+    if (!confirm('Are you sure you want to cancel this order?')) {
+        return;
+    }
+    
+    fetch('/cancel_order', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({order_id: orderId})
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification('Order cancelled successfully', 'success');
+            location.reload();
+        } else {
+            showNotification(data.message || 'Error cancelling order', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showNotification('Error cancelling order', 'error');
+    });
+}
+
+// Reorder items
+function reorderItems(orderId) {
+    if (!confirm('Add all items from this order to your cart?')) {
+        return;
+    }
+    
+    fetch('/reorder', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({order_id: orderId})
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification('Items added to cart!', 'success');
+            updateCartCount();
+        } else {
+            showNotification(data.message || 'Error adding items to cart', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showNotification('Error adding items to cart', 'error');
+    });
+}
+</script>
+{% endblock %}

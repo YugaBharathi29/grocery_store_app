@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Product - Admin{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8 mx-auto">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h3><i class="fas fa-edit"></i> Edit Product</h3>
+                    <a href="{{ url_for('admin_inventory') }}" class="btn btn-light btn-sm float-right">
+                        <i class="fas fa-arrow-left"></i> Back to Inventory
+                    </a>
+                </div>
+                <div class="card-body">
+                    <form method="POST" id="editProductForm" action="{{ url_for('edit_product', product_id=product.id) }}">
+                        <div class="form-row">
+                            <div class="form-group col-md-6">
+                                <label for="name">Product Name *</label>
+                                <input type="text" class="form-control" id="name" name="name" 
+                                       value="{{ product.name }}" required>
+                            </div>
+                            <div class="form-group col-md-6">
+                                <label for="category_id">Category *</label>
+                                <select class="form-control" id="category_id" name="category_id" required>
+                                    {% for category in categories %}
+                                    <option value="{{ category.id }}" 
+                                            {% if category.id == product.category_id %}selected{% endif %}>
+                                        {{ category.name }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="description">Description</label>
+                            <textarea class="form-control" id="description" name="description" rows="3">{{ product.description or '' }}</textarea>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group col-md-6">
+                                <label for="price">Price (₹) *</label>
+                                <input type="number" class="form-control" id="price" name="price" 
+                                       step="0.01" min="0" value="{{ product.price }}" required>
+                            </div>
+                            <div class="form-group col-md-6">
+                                <label for="stock">Stock Quantity *</label>
+                                <input type="number" class="form-control" id="stock" name="stock" 
+                                       min="0" value="{{ product.stock_quantity }}" required>
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group col-md-6">
+                                <label for="unit">Unit *</label>
+                                <select class="form-control" id="unit" name="unit" required>
+                                    <option value="kg" {% if product.unit == 'kg' %}selected{% endif %}>Kilogram</option>
+                                    <option value="gram" {% if product.unit == 'gram' %}selected{% endif %}>Gram</option>
+                                    <option value="liter" {% if product.unit == 'liter' %}selected{% endif %}>Liter</option>
+                                    <option value="piece" {% if product.unit == 'piece' %}selected{% endif %}>Piece</option>
+                                    <option value="packet" {% if product.unit == 'packet' %}selected{% endif %}>Packet</option>
+                                </select>
+                            </div>
+                            <div class="form-group col-md-6">
+                                <label for="image_url">Image URL</label>
+                                <input type="url" class="form-control" id="image_url" name="image_url" 
+                                       value="{{ product.image_url or '' }}">
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <div class="custom-control custom-checkbox">
+                                <input type="checkbox" class="custom-control-input" id="is_featured" 
+                                       name="is_featured" {% if product.is_featured %}checked{% endif %}>
+                                <label class="custom-control-label" for="is_featured">Featured Product</label>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <button type="submit" class="btn btn-success">
+                                <i class="fas fa-save"></i> Update Product
+                            </button>
+                            <a href="{{ url_for('admin_inventory') }}" class="btn btn-secondary ml-2">
+                                <i class="fas fa-times"></i> Cancel
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('editProductForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    const data = {};
+    
+    // Convert FormData to object
+    for (let [key, value] of formData.entries()) {
+        data[key] = value;
+    }
+    
+    // Handle checkbox
+    data.is_featured = document.getElementById('is_featured').checked;
+    
+    // Send AJAX request
+    fetch(this.action, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Product updated successfully!');
+            window.location.href = '{{ url_for("admin_inventory") }}';
+        } else {
+            alert('Error: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred. Please try again.');
+    });
+});
+</script>
+{% endblock %}

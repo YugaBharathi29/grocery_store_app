@@ -1,0 +1,201 @@
+{% extends "base.html" %}
+
+{% block title %}Register - Grocery Store{% endblock %}
+
+{% block content %}
+<div class="form-container">
+    <h2>Create Account</h2>
+    <p>Join our grocery store and start shopping for fresh products!</p>
+    
+    <form method="POST" action="{{ url_for('register') }}">
+        <div class="form-group">
+            <label for="username">Username</label>
+            <input type="text" id="username" name="username" required 
+                   placeholder="Enter your username" maxlength="80">
+        </div>
+        
+        <div class="form-group">
+            <label for="email">Email Address</label>
+            <input type="email" id="email" name="email" required 
+                   placeholder="Enter your email address">
+        </div>
+        
+        <div class="form-group">
+            <label for="password">Password</label>
+            <input type="password" id="password" name="password" required 
+                   placeholder="Enter your password" minlength="6">
+        </div>
+        
+        <div class="form-group">
+            <label for="confirm_password">Confirm Password</label>
+            <input type="password" id="confirm_password" name="confirm_password" required 
+                   placeholder="Confirm your password" minlength="6">
+        </div>
+        
+        <div class="form-group">
+            <label for="phone">Mobile Number <span style="color: #888; font-weight: normal;">(Optional)</span></label>
+            <input type="tel" id="phone" name="phone" 
+                   placeholder="Enter your 10-digit mobile number" pattern="[6-9][0-9]{9}">
+            <small>Enter 10-digit mobile number starting with 6, 7, 8, or 9 (optional for order updates)</small>
+        </div>
+        
+        <div class="form-group">
+            <label for="address">Delivery Address</label>
+            <textarea id="address" name="address" rows="4" required 
+                      placeholder="House/Flat No., Building Name&#10;Street/Area Name&#10;Landmark (Optional)&#10;City, State - PIN Code"></textarea>
+            <small>Please provide complete address with PIN code for accurate delivery</small>
+        </div>
+        
+        <div class="form-group">
+            <label for="pincode">PIN Code</label>
+            <input type="text" id="pincode" name="pincode" required 
+                   placeholder="Enter 6-digit PIN code" pattern="[0-9]{6}" maxlength="6">
+            <small>Enter valid 6-digit PIN code</small>
+        </div>
+        
+        <div class="form-group">
+            <button type="submit" class="btn btn-full">Create Account</button>
+        </div>
+    </form>
+    
+    <div class="form-footer">
+        <p>Already have an account? <a href="{{ url_for('login') }}">Login here</a></p>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.querySelector('form');
+    const password = document.getElementById('password');
+    const confirmPassword = document.getElementById('confirm_password');
+    const phone = document.getElementById('phone');
+    const pincode = document.getElementById('pincode');
+    
+    form.addEventListener('submit', function(e) {
+        // Password validation
+        if (password.value !== confirmPassword.value) {
+            e.preventDefault();
+            showNotification('Passwords do not match', 'error');
+            return;
+        }
+        
+        if (password.value.length < 6) {
+            e.preventDefault();
+            showNotification('Password must be at least 6 characters long', 'error');
+            return;
+        }
+        
+        // Mobile number validation (only if provided)
+        if (phone.value.trim() !== '') {
+            const phonePattern = /^[6-9]\d{9}$/;
+            const cleanPhone = phone.value.replace(/\D/g, '');
+            
+            if (!phonePattern.test(cleanPhone)) {
+                e.preventDefault();
+                showNotification('Please enter a valid 10-digit Indian mobile number starting with 6, 7, 8, or 9', 'error');
+                return;
+            }
+        }
+        
+        // PIN code validation
+        const pincodePattern = /^[0-9]{6}$/;
+        if (!pincodePattern.test(pincode.value)) {
+            e.preventDefault();
+            showNotification('Please enter a valid 6-digit PIN code', 'error');
+            return;
+        }
+    });
+    
+    // Real-time password confirmation
+    confirmPassword.addEventListener('input', function() {
+        if (password.value !== confirmPassword.value) {
+            confirmPassword.setCustomValidity('Passwords do not match');
+        } else {
+            confirmPassword.setCustomValidity('');
+        }
+    });
+    
+    // Mobile number formatting and validation (only when user enters data)
+    phone.addEventListener('input', function() {
+        // Remove non-digits
+        let value = this.value.replace(/\D/g, '');
+        
+        // Limit to 10 digits
+        if (value.length > 10) {
+            value = value.slice(0, 10);
+        }
+        
+        // Only validate and format if user has entered something
+        if (value.length > 0) {
+            // Format as XXXXX-XXXXX for display
+            if (value.length === 10) {
+                // Validate first digit (should be 6, 7, 8, or 9)
+                if (!/^[6-9]/.test(value)) {
+                    this.setCustomValidity('Mobile number must start with 6, 7, 8, or 9');
+                } else {
+                    this.setCustomValidity('');
+                    // Format as XXXXX-XXXXX
+                    value = `${value.slice(0, 5)}-${value.slice(5)}`;
+                }
+            } else if (value.length > 5) {
+                // Partial formatting during typing
+                value = `${value.slice(0, 5)}-${value.slice(5)}`;
+                this.setCustomValidity('');
+            } else {
+                this.setCustomValidity('');
+            }
+        } else {
+            // Clear any validation errors when field is empty
+            this.setCustomValidity('');
+        }
+        
+        this.value = value;
+    });
+    
+    // Clear validation when phone field is cleared
+    phone.addEventListener('blur', function() {
+        if (this.value.trim() === '') {
+            this.setCustomValidity('');
+        }
+    });
+    
+    // PIN code validation
+    pincode.addEventListener('input', function() {
+        // Remove non-digits
+        let value = this.value.replace(/\D/g, '');
+        
+        // Limit to 6 digits
+        if (value.length > 6) {
+            value = value.slice(0, 6);
+        }
+        
+        this.value = value;
+        
+        // Validate PIN code format
+        if (value.length === 6) {
+            // Basic PIN code validation
+            if (!/^[1-9][0-9]{5}$/.test(value)) {
+                this.setCustomValidity('Please enter a valid PIN code');
+            } else {
+                this.setCustomValidity('');
+            }
+        } else if (value.length > 0) {
+            this.setCustomValidity('PIN code must be 6 digits');
+        } else {
+            this.setCustomValidity('PIN code is required');
+        }
+    });
+    
+    // Auto-capitalize address for better formatting
+    const address = document.getElementById('address');
+    address.addEventListener('blur', function() {
+        // Capitalize first letter of each line
+        let lines = this.value.split('\n');
+        lines = lines.map(line => {
+            return line.charAt(0).toUpperCase() + line.slice(1).toLowerCase();
+        });
+        this.value = lines.join('\n');
+    });
+});
+</script>
+{% endblock %}

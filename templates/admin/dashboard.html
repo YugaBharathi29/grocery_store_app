@@ -1,0 +1,484 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Dashboard - Grocery Store{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="admin-header">
+        <h1>Admin Dashboard</h1>
+        <p>Manage your grocery store efficiently</p>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="dashboard-stats">
+        <div class="stat-card">
+            <h3>{{ total_products }}</h3>
+            <p><i class="fas fa-box"></i> Total Products</p>
+        </div>
+        
+        <div class="stat-card">
+            <h3>{{ total_orders }}</h3>
+            <p><i class="fas fa-shopping-cart"></i> Total Orders</p>
+        </div>
+        
+        <div class="stat-card warning">
+            <h3>{{ pending_orders }}</h3>
+            <p><i class="fas fa-clock"></i> Pending Orders</p>
+        </div>
+        
+        <div class="stat-card info">
+            <h3>{{ total_users }}</h3>
+            <p><i class="fas fa-users"></i> Registered Users</p>
+        </div>
+        
+        <div class="stat-card {% if low_stock_products > 0 %}danger{% endif %}">
+            <h3>{{ low_stock_products }}</h3>
+            <p><i class="fas fa-exclamation-triangle"></i> Low Stock Items</p>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="admin-card">
+        <h2><i class="fas fa-bolt"></i> Quick Actions</h2>
+        <div class="quick-actions">
+            <a href="{{ url_for('admin_inventory') }}" class="btn btn-primary">
+                <i class="fas fa-plus"></i> Add Product
+            </a>
+            <a href="{{ url_for('admin_orders') }}" class="btn btn-secondary">
+                <i class="fas fa-list"></i> View Orders
+            </a>
+            <button onclick="showAddCategoryModal()" class="btn btn-secondary">
+                <i class="fas fa-tags"></i> Add Category
+            </button>
+            <button onclick="generateReport()" class="btn btn-secondary">
+                <i class="fas fa-chart-bar"></i> Generate Report
+            </button>
+        </div>
+    </div>
+
+    <!-- Recent Orders -->
+    <div class="admin-card">
+        <h2><i class="fas fa-shopping-bag"></i> Recent Orders</h2>
+        {% if recent_orders %}
+        <div class="order-table">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Order ID</th>
+                        <th>Customer</th>
+                        <th>Date</th>
+                        <th>Total Amount</th>
+                        <th>Status</th>
+                        <th>Items</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for order in recent_orders %}
+                    <tr>
+                        <td>#{{ order.id }}</td>
+                        <td>
+                            <div>
+                                <strong>{{ order.customer.username }}</strong>
+                                <div class="order-details">{{ order.customer.email }}</div>
+                            </div>
+                        </td>
+                        <td>
+                            <div>{{ order.order_date.strftime('%d %b, %Y') }}</div>
+                            <div class="order-details">{{ order.order_date.strftime('%I:%M %p') }}</div>
+                        </td>
+                        <td>
+                            <strong>₹{{ "%.2f"|format(order.total_amount) }}</strong>
+                        </td>
+                        <td>
+                            <span class="status-badge {{ order.status }}">
+                                {{ order.status.title() }}
+                            </span>
+                        </td>
+                        <td>
+                            <div>{{ order.items|length }} item(s)</div>
+                            <div class="order-details">
+                                {% for item in order.items[:2] %}
+                                    {{ item.product.name }}{% if not loop.last %}, {% endif %}
+                                {% endfor %}
+                                {% if order.items|length > 2 %}
+                                    ... and {{ order.items|length - 2 }} more
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td>
+                            <select onchange="updateOrderStatus({{ order.id }}, this.value)" 
+                                    class="status-select">
+                                <option value="pending" {% if order.status == 'pending' %}selected{% endif %}>Pending</option>
+                                <option value="confirmed" {% if order.status == 'confirmed' %}selected{% endif %}>Confirmed</option>
+                                <option value="delivered" {% if order.status == 'delivered' %}selected{% endif %}>Delivered</option>
+                                <option value="cancelled" {% if order.status == 'cancelled' %}selected{% endif %}>Cancelled</option>
+                            </select>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <div class="table-footer">
+            <a href="{{ url_for('admin_orders') }}" class="btn btn-primary">View All Orders</a>
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <i class="fas fa-shopping-bag empty-icon"></i>
+            <h3>No Recent Orders</h3>
+            <p>New orders will appear here when customers place them.</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Low Stock Alert -->
+    {% if low_stock_products > 0 %}
+    <div class="admin-card alert-card">
+        <h2><i class="fas fa-exclamation-triangle"></i> Low Stock Alert</h2>
+        <div class="alert-content">
+            <p>You have <strong>{{ low_stock_products }}</strong> products running low on stock (less than 10 items).</p>
+            <a href="{{ url_for('admin_inventory') }}?filter=low_stock" class="btn btn-primary">
+                <i class="fas fa-eye"></i> View Low Stock Items
+            </a>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Sales Summary -->
+    <div class="admin-card">
+        <h2><i class="fas fa-chart-line"></i> Sales Summary</h2>
+        <div class="sales-grid">
+            <div class="sales-stat">
+                <h4>Today's Sales</h4>
+                <p class="sales-amount">₹{{ "%.2f"|format(0) }}</p>
+                <small>0 orders</small>
+            </div>
+            <div class="sales-stat">
+                <h4>This Week</h4>
+                <p class="sales-amount">₹{{ "%.2f"|format(0) }}</p>
+                <small>{{ pending_orders + (total_orders - pending_orders) }} orders</small>
+            </div>
+            <div class="sales-stat">
+                <h4>This Month</h4>
+                <p class="sales-amount">₹{{ "%.2f"|format(0) }}</p>
+                <small>{{ total_orders }} orders</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Category Modal -->
+<div id="categoryModal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Add New Category</h3>
+            <span class="close" onclick="hideAddCategoryModal()">&times;</span>
+        </div>
+        <div class="modal-body">
+            <form id="addCategoryForm">
+                <div class="form-group">
+                    <label for="categoryName">Category Name</label>
+                    <input type="text" id="categoryName" name="name" required 
+                           placeholder="Enter category name">
+                </div>
+                <div class="form-group">
+                    <label for="categoryDescription">Description</label>
+                    <textarea id="categoryDescription" name="description" rows="3" 
+                             placeholder="Enter category description"></textarea>
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" onclick="hideAddCategoryModal()">Cancel</button>
+            <button type="submit" form="addCategoryForm" class="btn btn-primary">Add Category</button>
+        </div>
+    </div>
+</div>
+
+<style>
+/* Additional Dashboard Styles */
+.admin-header {
+    text-align: center;
+    margin-bottom: 2rem;
+    padding: 2rem 0;
+    background: linear-gradient(135deg, #2c5530, #4CAF50);
+    color: white;
+    border-radius: 10px;
+    margin-top: 1rem;
+}
+
+.admin-header h1 {
+    font-size: 2.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.admin-header p {
+    font-size: 1.1rem;
+    opacity: 0.9;
+}
+
+.quick-actions {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+}
+
+.quick-actions .btn {
+    padding: 1rem;
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    font-size: 1rem;
+}
+
+.alert-card {
+    border-left: 4px solid #ff9800;
+    background: linear-gradient(135deg, #fff8e1, #ffffff);
+}
+
+.alert-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 3rem 1rem;
+    color: #666;
+}
+
+.empty-icon {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    color: #ccc;
+}
+
+.table-footer {
+    text-align: center;
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid #eee;
+}
+
+.status-select {
+    padding: 0.3rem 0.5rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 0.8rem;
+}
+
+.sales-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 2rem;
+}
+
+.sales-stat {
+    text-align: center;
+    padding: 1.5rem;
+    background: #f8f9fa;
+    border-radius: 8px;
+}
+
+.sales-stat h4 {
+    color: #2c5530;
+    margin-bottom: 0.5rem;
+    font-size: 1.1rem;
+}
+
+.sales-amount {
+    font-size: 1.8rem;
+    font-weight: bold;
+    color: #4CAF50;
+    margin-bottom: 0.3rem;
+}
+
+.sales-stat small {
+    color: #666;
+    font-size: 0.85rem;
+}
+
+/* Modal Styles */
+.modal {
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-content {
+    background-color: white;
+    border-radius: 10px;
+    width: 90%;
+    max-width: 500px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+.modal-header {
+    padding: 1.5rem;
+    border-bottom: 1px solid #eee;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.modal-header h3 {
+    margin: 0;
+    color: #2c5530;
+}
+
+.close {
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: #666;
+}
+
+.close:hover {
+    color: #333;
+}
+
+.modal-body {
+    padding: 1.5rem;
+}
+
+.modal-footer {
+    padding: 1rem 1.5rem;
+    border-top: 1px solid #eee;
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .admin-header h1 {
+        font-size: 2rem;
+    }
+    
+    .alert-content {
+        flex-direction: column;
+        gap: 1rem;
+    }
+    
+    .sales-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .quick-actions {
+        grid-template-columns: 1fr;
+    }
+    
+    .order-table {
+        font-size: 0.85rem;
+    }
+}
+</style>
+
+<script>
+// Update order status
+function updateOrderStatus(orderId, status) {
+    fetch('/admin/update_order_status', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            order_id: orderId,
+            status: status
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification('Order status updated successfully!', 'success');
+            // Update status badge
+            const selectElement = event.target;
+            const row = selectElement.closest('tr');
+            const badge = row.querySelector('.status-badge');
+            badge.className = 'status-badge ' + status;
+            badge.textContent = status.charAt(0).toUpperCase() + status.slice(1);
+        } else {
+            showNotification(data.message || 'Error updating order status', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showNotification('Error updating order status', 'error');
+    });
+}
+
+// Show add category modal
+function showAddCategoryModal() {
+    document.getElementById('categoryModal').style.display = 'flex';
+}
+
+// Hide add category modal
+function hideAddCategoryModal() {
+    document.getElementById('categoryModal').style.display = 'none';
+    document.getElementById('addCategoryForm').reset();
+}
+
+// Add category form submission
+document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('addCategoryForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const formData = {
+            name: document.getElementById('categoryName').value,
+            description: document.getElementById('categoryDescription').value
+        };
+        
+        fetch('/admin/add_category', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(formData)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showNotification('Category added successfully!', 'success');
+                hideAddCategoryModal();
+            } else {
+                showNotification(data.message || 'Error adding category', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showNotification('Error adding category', 'error');
+        });
+    });
+});
+
+// Generate report (placeholder)
+function generateReport() {
+    showNotification('Report generation feature coming soon!', 'info');
+}
+
+// Close modal when clicking outside
+window.onclick = function(event) {
+    const modal = document.getElementById('categoryModal');
+    if (event.target === modal) {
+        hideAddCategoryModal();
+    }
+};
+
+// Auto-refresh dashboard every 5 minutes
+setInterval(function() {
+    location.reload();
+}, 300000);
+</script>
+{% endblock %}

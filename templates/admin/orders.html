@@ -1,0 +1,706 @@
+{% extends "base.html" %}
+
+{% block title %}Order Management - Admin{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="admin-header">
+        <h1><i class="fas fa-shopping-bag"></i> Order Management</h1>
+        <p>Manage and track all customer orders</p>
+    </div>
+
+    <!-- Order Statistics -->
+    <div class="dashboard-stats">
+        <div class="stat-card">
+            <h3>{{ orders|length }}</h3>
+            <p><i class="fas fa-shopping-cart"></i> Total Orders</p>
+        </div>
+        
+        <div class="stat-card warning">
+            <h3>{{ orders|selectattr('status', 'equalto', 'pending')|list|length }}</h3>
+            <p><i class="fas fa-clock"></i> Pending Orders</p>
+        </div>
+        
+        <div class="stat-card info">
+            <h3>{{ orders|selectattr('status', 'equalto', 'confirmed')|list|length }}</h3>
+            <p><i class="fas fa-check"></i> Confirmed Orders</p>
+        </div>
+        
+        <div class="stat-card">
+            <h3>{{ orders|selectattr('status', 'equalto', 'delivered')|list|length }}</h3>
+            <p><i class="fas fa-truck"></i> Delivered Orders</p>
+        </div>
+    </div>
+
+    <!-- Orders Filter and Search -->
+    <div class="admin-card">
+        <div class="orders-controls">
+            <div class="filter-section">
+                <h3>Filter Orders</h3>
+                <div class="filter-controls">
+                    <select id="statusFilter" onchange="filterOrders()">
+                        <option value="">All Orders</option>
+                        <option value="pending">Pending</option>
+                        <option value="confirmed">Confirmed</option>
+                        <option value="delivered">Delivered</option>
+                        <option value="cancelled">Cancelled</option>
+                    </select>
+                    
+                    <input type="date" id="dateFilter" onchange="filterOrders()" title="Filter by date">
+                    
+                    <input type="text" id="searchOrders" placeholder="Search by order ID or customer..." onkeyup="searchOrders()">
+                </div>
+            </div>
+            
+            <div class="bulk-actions">
+                <button onclick="markAsConfirmed()" class="btn btn-primary">
+                    <i class="fas fa-check"></i> Mark as Confirmed
+                </button>
+                <button onclick="exportOrders()" class="btn btn-secondary">
+                    <i class="fas fa-download"></i> Export Orders
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Orders Table -->
+    <div class="admin-card">
+        <h2><i class="fas fa-list"></i> All Orders</h2>
+        
+        {% if orders %}
+        <div class="orders-table-container">
+            <table class="orders-table" id="ordersTable">
+                <thead>
+                    <tr>
+                        <th>
+                            <input type="checkbox" id="selectAll" onchange="toggleSelectAll()">
+                        </th>
+                        <th>Order ID</th>
+                        <th>Customer</th>
+                        <th>Date & Time</th>
+                        <th>Items</th>
+                        <th>Total Amount</th>
+                        <th>Status</th>
+                        <th>Delivery Address</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for order in orders %}
+                    <tr data-status="{{ order.status }}" data-date="{{ order.order_date.strftime('%Y-%m-%d') }}">
+                        <td>
+                            <input type="checkbox" class="order-select" value="{{ order.id }}">
+                        </td>
+                        <td>
+                            <strong>#{{ order.id }}</strong>
+                        </td>
+                        <td>
+                            <div class="customer-info">
+                                <strong>{{ order.customer.username }}</strong>
+                                <div class="customer-details">
+                                    <small>{{ order.customer.email }}</small><br>
+                                    <small><i class="fas fa-phone"></i> {{ order.phone_number }}</small>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="order-datetime">
+                                <strong>{{ order.order_date.strftime('%d %b, %Y') }}</strong>
+                                <div class="order-time">{{ order.order_date.strftime('%I:%M %p') }}</div>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="order-items-summary">
+                                <strong>{{ order.items|length }} item(s)</strong>
+                                <div class="items-preview">
+                                    {% for item in order.items[:2] %}
+                                        <small>{{ item.product.name }} ({{ item.quantity }})</small><br>
+                                    {% endfor %}
+                                    {% if order.items|length > 2 %}
+                                        <small>+{{ order.items|length - 2 }} more...</small>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <strong class="amount">₹{{ "%.2f"|format(order.total_amount) }}</strong>
+                        </td>
+                        <td>
+                            <select class="status-select" onchange="updateOrderStatus({{ order.id }}, this.value)">
+                                <option value="pending" {% if order.status == 'pending' %}selected{% endif %}>Pending</option>
+                                <option value="confirmed" {% if order.status == 'confirmed' %}selected{% endif %}>Confirmed</option>
+                                <option value="delivered" {% if order.status == 'delivered' %}selected{% endif %}>Delivered</option>
+                                <option value="cancelled" {% if order.status == 'cancelled' %}selected{% endif %}>Cancelled</option>
+                            </select>
+                        </td>
+                        <td>
+                            <div class="address-info">
+                                <span title="{{ order.delivery_address }}">
+                                    {{ order.delivery_address[:30] }}{% if order.delivery_address|length > 30 %}...{% endif %}
+                                </span>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="action-buttons">
+                                <button onclick="viewOrderDetails({{ order.id }})" class="btn-small btn-info" title="View Details">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                                <button onclick="printOrder({{ order.id }})" class="btn-small btn-secondary" title="Print Order">
+                                    <i class="fas fa-print"></i>
+                                </button>
+                                {% if order.status in ['pending', 'confirmed'] %}
+                                <button onclick="cancelOrder({{ order.id }})" class="btn-small btn-danger" title="Cancel Order">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <i class="fas fa-shopping-bag empty-icon"></i>
+            <h3>No Orders Found</h3>
+            <p>No orders have been placed yet.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Order Details Modal -->
+<div id="orderModal" class="modal" style="display: none;">
+    <div class="modal-content large-modal">
+        <div class="modal-header">
+            <h3><i class="fas fa-receipt"></i> Order Details</h3>
+            <span class="close" onclick="hideOrderModal()">&times;</span>
+        </div>
+        <div class="modal-body" id="orderModalBody">
+            <!-- Order details will be loaded here -->
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" onclick="hideOrderModal()">Close</button>
+            <button type="button" class="btn btn-primary" onclick="printCurrentOrder()">Print Order</button>
+        </div>
+    </div>
+</div>
+
+<style>
+/* Admin Orders Styles */
+.admin-header {
+    text-align: center;
+    margin-bottom: 2rem;
+    padding: 2rem 0;
+    background: linear-gradient(135deg, #2c5530, #4CAF50);
+    color: white;
+    border-radius: 10px;
+    margin-top: 1rem;
+}
+
+.orders-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 2rem;
+    margin-bottom: 0;
+}
+
+.filter-section h3 {
+    color: #2c5530;
+    margin-bottom: 1rem;
+}
+
+.filter-controls {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+}
+
+.filter-controls select,
+.filter-controls input {
+    padding: 0.5rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 0.9rem;
+}
+
+.bulk-actions {
+    display: flex;
+    gap: 1rem;
+}
+
+.orders-table-container {
+    overflow-x: auto;
+    border-radius: 8px;
+    border: 1px solid #eee;
+}
+
+.orders-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+}
+
+.orders-table th,
+.orders-table td {
+    padding: 1rem 0.8rem;
+    text-align: left;
+    border-bottom: 1px solid #eee;
+    vertical-align: top;
+}
+
+.orders-table th {
+    background-color: #f8f9fa;
+    font-weight: bold;
+    color: #2c5530;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.orders-table tr:hover {
+    background-color: #f8f9fa;
+}
+
+.customer-info strong {
+    color: #2c5530;
+    font-size: 1rem;
+}
+
+.customer-details {
+    margin-top: 0.3rem;
+    color: #666;
+}
+
+.order-datetime strong {
+    color: #2c5530;
+}
+
+.order-time {
+    color: #666;
+    font-size: 0.85rem;
+}
+
+.order-items-summary strong {
+    color: #2c5530;
+}
+
+.items-preview {
+    margin-top: 0.3rem;
+    color: #666;
+    font-size: 0.85rem;
+}
+
+.amount {
+    color: #4CAF50;
+    font-size: 1.1rem;
+}
+
+.status-select {
+    padding: 0.4rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    background-color: white;
+}
+
+.address-info {
+    max-width: 200px;
+    color: #666;
+    font-size: 0.85rem;
+}
+
+.action-buttons {
+    display: flex;
+    gap: 0.3rem;
+}
+
+.btn-info {
+    background-color: #17a2b8;
+    color: white;
+}
+
+.btn-info:hover {
+    background-color: #138496;
+}
+
+/* Large Modal */
+.large-modal {
+    max-width: 800px;
+    width: 95%;
+}
+
+.order-detail-section {
+    margin-bottom: 2rem;
+}
+
+.order-detail-section h4 {
+    color: #2c5530;
+    margin-bottom: 1rem;
+    border-bottom: 2px solid #4CAF50;
+    padding-bottom: 0.5rem;
+}
+
+.detail-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.detail-item {
+    background: #f8f9fa;
+    padding: 1rem;
+    border-radius: 5px;
+}
+
+.detail-item strong {
+    color: #2c5530;
+    display: block;
+    margin-bottom: 0.3rem;
+}
+
+.order-items-detail {
+    background: #f8f9fa;
+    padding: 1rem;
+    border-radius: 5px;
+}
+
+.item-row {
+    display: grid;
+    grid-template-columns: 60px 1fr auto auto auto;
+    gap: 1rem;
+    align-items: center;
+    padding: 0.8rem 0;
+    border-bottom: 1px solid #ddd;
+}
+
+.item-row:last-child {
+    border-bottom: none;
+}
+
+.item-image {
+    width: 50px;
+    height: 50px;
+    object-fit: cover;
+    border-radius: 4px;
+}
+
+.item-details h5 {
+    margin: 0;
+    color: #2c5530;
+}
+
+.item-details p {
+    margin: 0;
+    color: #666;
+    font-size: 0.85rem;
+}
+
+.summary-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid #ddd;
+}
+
+.summary-row.total {
+    border-top: 2px solid #ddd;
+    font-weight: bold;
+    font-size: 1.1rem;
+    color: #2c5530;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .orders-controls {
+        flex-direction: column;
+        gap: 1rem;
+    }
+    
+    .filter-controls {
+        flex-wrap: wrap;
+    }
+    
+    .orders-table {
+        font-size: 0.8rem;
+    }
+    
+    .orders-table th,
+    .orders-table td {
+        padding: 0.5rem 0.3rem;
+    }
+    
+    .action-buttons {
+        flex-direction: column;
+        gap: 0.2rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .large-modal {
+        width: 98%;
+        margin: 1%;
+    }
+    
+    .detail-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .item-row {
+        grid-template-columns: 1fr;
+        text-align: center;
+        gap: 0.5rem;
+    }
+}
+</style>
+
+<script>
+let currentOrderId = null;
+
+// Filter orders by status and date
+function filterOrders() {
+    const statusFilter = document.getElementById('statusFilter').value;
+    const dateFilter = document.getElementById('dateFilter').value;
+    const rows = document.querySelectorAll('#ordersTable tbody tr');
+    
+    rows.forEach(row => {
+        const status = row.getAttribute('data-status');
+        const date = row.getAttribute('data-date');
+        
+        let showStatus = !statusFilter || status === statusFilter;
+        let showDate = !dateFilter || date === dateFilter;
+        
+        if (showStatus && showDate) {
+            row.style.display = '';
+        } else {
+            row.style.display = 'none';
+        }
+    });
+}
+
+// Search orders
+function searchOrders() {
+    const searchTerm = document.getElementById('searchOrders').value.toLowerCase();
+    const rows = document.querySelectorAll('#ordersTable tbody tr');
+    
+    rows.forEach(row => {
+        const text = row.textContent.toLowerCase();
+        if (text.includes(searchTerm)) {
+            row.style.display = '';
+        } else {
+            row.style.display = 'none';
+        }
+    });
+}
+
+// Select all orders
+function toggleSelectAll() {
+    const selectAll = document.getElementById('selectAll');
+    const checkboxes = document.querySelectorAll('.order-select');
+    
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = selectAll.checked;
+    });
+}
+
+// Update order status
+function updateOrderStatus(orderId, status) {
+    fetch('/admin/update_order_status', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            order_id: orderId,
+            status: status
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification('Order status updated successfully!', 'success');
+        } else {
+            showNotification(data.message || 'Error updating order status', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showNotification('Error updating order status', 'error');
+    });
+}
+
+// View order details
+function viewOrderDetails(orderId) {
+    currentOrderId = orderId;
+    
+    fetch(`/admin/order_details/${orderId}`)
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            displayOrderDetails(data.order);
+            document.getElementById('orderModal').style.display = 'flex';
+        } else {
+            showNotification('Error loading order details', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showNotification('Error loading order details', 'error');
+    });
+}
+
+// Display order details in modal
+function displayOrderDetails(order) {
+    const modalBody = document.getElementById('orderModalBody');
+    
+    const orderHTML = `
+        <div class="order-detail-section">
+            <h4>Order Information</h4>
+            <div class="detail-grid">
+                <div class="detail-item">
+                    <strong>Order ID:</strong>
+                    #${order.id}
+                </div>
+                <div class="detail-item">
+                    <strong>Order Date:</strong>
+                    ${order.order_date}
+                </div>
+                <div class="detail-item">
+                    <strong>Status:</strong>
+                    <span class="status-badge ${order.status}">${order.status.toUpperCase()}</span>
+                </div>
+                <div class="detail-item">
+                    <strong>Total Amount:</strong>
+                    ₹${order.total_amount}
+                </div>
+            </div>
+        </div>
+        
+        <div class="order-detail-section">
+            <h4>Customer Information</h4>
+            <div class="detail-grid">
+                <div class="detail-item">
+                    <strong>Name:</strong>
+                    ${order.customer_name}
+                </div>
+                <div class="detail-item">
+                    <strong>Email:</strong>
+                    ${order.customer_email}
+                </div>
+                <div class="detail-item">
+                    <strong>Phone:</strong>
+                    ${order.phone_number}
+                </div>
+                <div class="detail-item">
+                    <strong>Delivery Address:</strong>
+                    ${order.delivery_address}
+                </div>
+            </div>
+        </div>
+        
+        <div class="order-detail-section">
+            <h4>Order Items</h4>
+            <div class="order-items-detail">
+                ${order.items.map(item => `
+                    <div class="item-row">
+                        <img src="${item.image_url || '/static/images/no-image.jpg'}" class="item-image" alt="${item.name}">
+                        <div class="item-details">
+                            <h5>${item.name}</h5>
+                            <p>${item.description || 'No description'}</p>
+                        </div>
+                        <div>₹${item.price}</div>
+                        <div>Qty: ${item.quantity}</div>
+                        <div><strong>₹${(item.price * item.quantity).toFixed(2)}</strong></div>
+                    </div>
+                `).join('')}
+            </div>
+        </div>
+        
+        <div class="order-detail-section">
+            <h4>Order Summary</h4>
+            <div class="order-items-detail">
+                <div class="summary-row">
+                    <span>Subtotal:</span>
+                    <span>₹${order.subtotal}</span>
+                </div>
+                <div class="summary-row">
+                    <span>Delivery Fee:</span>
+                    <span>₹5.00</span>
+                </div>
+                <div class="summary-row">
+                    <span>GST (5%):</span>
+                    <span>₹${order.gst}</span>
+                </div>
+                <div class="summary-row total">
+                    <span>Total Amount:</span>
+                    <span>₹${order.total_amount}</span>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    modalBody.innerHTML = orderHTML;
+}
+
+// Hide order modal
+function hideOrderModal() {
+    document.getElementById('orderModal').style.display = 'none';
+    currentOrderId = null;
+}
+
+// Cancel order
+function cancelOrder(orderId) {
+    if (!confirm('Are you sure you want to cancel this order?')) {
+        return;
+    }
+    
+    updateOrderStatus(orderId, 'cancelled');
+}
+
+// Mark selected orders as confirmed
+function markAsConfirmed() {
+    const selectedOrders = Array.from(document.querySelectorAll('.order-select:checked')).map(cb => cb.value);
+    
+    if (selectedOrders.length === 0) {
+        showNotification('Please select orders to confirm', 'warning');
+        return;
+    }
+    
+    if (!confirm(`Mark ${selectedOrders.length} order(s) as confirmed?`)) {
+        return;
+    }
+    
+    selectedOrders.forEach(orderId => {
+        updateOrderStatus(orderId, 'confirmed');
+    });
+}
+
+// Print order
+function printOrder(orderId) {
+    window.open(`/admin/print_order/${orderId}`, '_blank');
+}
+
+// Print current order in modal
+function printCurrentOrder() {
+    if (currentOrderId) {
+        printOrder(currentOrderId);
+    }
+}
+
+// Export orders
+function exportOrders() {
+    showNotification('Export feature coming soon!', 'info');
+}
+
+// Close modal when clicking outside
+window.onclick = function(event) {
+    const modal = document.getElementById('orderModal');
+    if (event.target === modal) {
+        hideOrderModal();
+    }
+};
+</script>
+{% endblock %}
